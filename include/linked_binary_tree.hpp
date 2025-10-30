@@ -3,14 +3,18 @@
 
 #include <iostream>
 #include <vector>
-#include <queue>
-#include <algorithm>
 
 template <typename E>
 class LinkedBinaryTree{
     protected:
         class Node {
-            // practice writing code yourself and match with slides
+            //public for convenience
+            public:
+                E element;
+                Node* parent;
+                Node* left{nullptr};
+                Node* right{nullptr};
+                Node(E e, Node* p=nullptr): element{e}, parent{p}{};
         };// end of Node class
 
     protected:
@@ -20,7 +24,10 @@ class LinkedBinaryTree{
     public:
         class Position {
             private:
-                // practice writing code yourself and match with slides
+                // Raw pointer to a Node
+                Node* node;
+                // allow outer class access to node pointer
+                friend class LinkedBinaryTree;
             public:
                 // Wraps a Node* pointer 
                 //(default is nullptr)
@@ -28,118 +35,246 @@ class LinkedBinaryTree{
 
                 // operator (based on node pointer)
                 bool operator==(Position other) const{
-                    // practice writing code yourself and match with slides
+                    return node == other.node; 
                 }
                 bool operator!=(Position other) const{
-                    // practice writing code yourself and match with slides
+                    return node != other.node;
                 }
                 bool is_null() const{
-                    // practice writing code yourself and match with slides
+                    return node == nullptr; 
                 }
                 bool is_root() const{
-                    // practice writing code yourself and match with slides
+                    return node->parent == nullptr;
                 }
                 bool is_external() const{
-                    // practice writing code yourself and match with slides
+                    return (node->left == nullptr) && (node->right == nullptr);
                 }
                 E& element(){ // get reference to element
-                    // practice writing code yourself and match with slides
+                    return node->element;
                 }
                 const E& element() const{
-                    // practice writing code yourself and match with slides
+                    return node->element; 
                 }
 
                 Position parent() const{
-                    // practice writing code yourself and match with slides
+                    return Position(node->parent); 
                 }
                 Position left() const{
-                    // practice writing code yourself and match with slides
+                    return Position(node->left);
                 }
                 Position right() const{
-                    // practice writing code yourself and match with slides
+                    return Position(node->right);
                 }
-                
                 std::vector<Position> children() const{
-                    // practice writing code yourself and match with slides
+                    std::vector<Position> result;
+                    //left child if valid
+                    if (node->left != nullptr) 
+                        result.push_back(Position(node->left));
+                    //right child if valid
+                    if (node->right != nullptr) 
+                        result.push_back(Position(node->right));
+
+                    return result;
                 }
                 int num_children() const{
-                    // practice writing code yourself and match with slides
+                    int result{0};
+                    if (node->left != nullptr)
+                        result++;
+                    if (node->right != nullptr) 
+                        result++;
+                    return result;
                 }
         };  // end of Position class
         LinkedBinaryTree() = default; //tree with zero nodes
         int size() const{
-            // practice writing code yourself and match with slides
+            return sz;
         }
         bool empty() const{
-            // practice writing code yourself and match with slides
+            return sz == 0; 
         }
         Position root() const{
-            // practice writing code yourself and match with slides
+            return Position(rt); 
         }
         std::vector<Position> positions() const{
-            // practice writing code yourself and match with slides
+            std::vector<Position> gather;
+            if (rt) 
+                inorder(Position(rt), gather);
+            return gather;
         }
         void add_root(const E& e=E()){
-            // practice writing code yourself and match with slides
+            rt = new Node(e);
+            sz = 1;
         }
         void add_left(Position p, const E& e){
-            // practice writing code yourself and match with slides
+            //create new node with p as parent
+            auto new_node = new Node{e, p.node};
+            //new node is left child of p
+            p.node->left = new_node;
+            //increase size
+            sz++;
         }
         void add_right(Position p, const E& e){
-            // practice writing code yourself and match with slides
+            //create new node with p as parent
+            auto new_node = new Node{e, p.node};
+            //new node is right child of p
+            p.node->right = new_node;
+            //increase size
+            sz++;
         }
 
         void erase(Position p){
-            // practice writing code yourself and match with slides
-        }
+            // Get the actual node pointer from Position wrapper
+            Node* nd = p.node;
 
+            // lone child or else nullptr
+            Node* child{nd->left==nullptr ? nd->right : nd->left};
+
+            // child's grandparent becomes parent
+            if (child != nullptr)
+                child->parent = nd->parent;
+
+            //update node's parent's 
+            //left or right pointer to point child
+            //if root to be removed then child is root
+            if (nd == rt)
+                rt = child;
+            else if (nd->parent->left == nd) //left
+                nd->parent->left = child;
+            else
+                nd->parent->right = child; //right
+            sz--;
+            delete nd;
+        }
         void attach(Position p, LinkedBinaryTree& left, LinkedBinaryTree& right){
-            // practice writing code yourself and match with slides
+            Node* nd = p.node; // get Node pointer
+            nd->left = left.rt; //set left child
+            nd->right = right.rt; //set right child
+            sz += left.sz + right.sz;
+
+            // If the left tree is not empty, 
+            //update its root's parent pointer
+            if (left.rt) 
+                left.rt->parent = nd;
+            // If the right tree is not empty, 
+            //update its root's parent pointer
+            if (right.rt) 
+                right.rt->parent = nd;
+
+            // Reset left and right trees to be empty
+            left.sz = right.sz = 0;
+            left.rt = right.rt = nullptr;
         }
     // ------------- Rule-of-five support ----------------
     private:
         void tear_down(Node* nd){
-            // practice writing code yourself and match with slides
+            if (nd != nullptr) {
+                tear_down(nd->left);
+                tear_down(nd->right);
+                delete nd;
+            }
         }
         static Node* clone(Node* model){
-            // practice writing code yourself and match with slides
+            // base case
+            if (model == nullptr) 
+                return nullptr;
+
+            Node* new_root = new Node(model->element);
+            //Recursively clone the left subtree.
+            //If left child exists, set its parent to new root
+            new_root->left = clone(model->left);
+            if (new_root->left) 
+                new_root->left->parent = new_root;
+
+            //Recursively clone the right subtree.
+            //If right child exists, set its parent to new root
+            new_root->right = clone(model->right);
+            if (new_root->right) 
+                new_root->right->parent = new_root;
+            
+                //return the newly cloned root node
+            return new_root;
         }
 
     public:
         ~LinkedBinaryTree(){
-            // practice writing code yourself and match with slides
+            tear_down(rt); 
         }
         
         // copy constructor and copy assignment
-        LinkedBinaryTree(const LinkedBinaryTree& other){
-            // practice writing code yourself and match with slides
-        }
+        LinkedBinaryTree(const LinkedBinaryTree& other)
+        : sz{other.sz}, rt{clone(other.rt)} {}
 
         LinkedBinaryTree& operator=(const LinkedBinaryTree& other){
-            // practice writing code yourself and match with slides
+            if (this != &other) { 
+                tear_down(rt);
+                rt = clone(other.rt);
+                sz = other.sz;
+            }
+            return *this;
         }
 
         // move constructor and move assignment
-        LinkedBinaryTree(LinkedBinaryTree&& other){
-            // practice writing code yourself and match with slides
+        LinkedBinaryTree(LinkedBinaryTree&& other)
+        : sz{other.sz}, rt{other.rt} {
+            other.sz = 0;
+            other.rt = nullptr;
         }
 
         LinkedBinaryTree& operator=(LinkedBinaryTree&& other){
-            // practice writing code yourself and match with slides
+            if (this != &other) {                       
+                std::swap(sz, other.sz);
+                std::swap(rt, other.rt); 
+            }
+            return *this;
         }
 
     // ******************* Assignment ******************* 
     private:
-        // Helper functions in case you want to write
+        int count_left_leaves_rec(Node* nd) const {
+            if (nd == nullptr) {
+                return 0;
+            }
+            int count = 0;
+            // check if the left child is a leaf node
+            if (nd->left != nullptr && nd->left->left == nullptr && nd->left->right == nullptr) {
+                count = 1;
+            }
+            // recursively count left leaves in left and right subtrees
+            count += count_left_leaves_rec(nd->left);
+            count += count_left_leaves_rec(nd->right);
+            return count;
+        }
 
     public:
         int count_left_leaves() const{
-            // ToDo (use recursion)
-            //count nodes that are leaves in a binary tree and that are the left child of their respective parent. The root is not counted.
+            return count_left_leaves_rec(rt);
         }
 
         int count_left_leaves_bfs() const {
-            // ToDo (use breadth first search)
-            //count nodes that are leaves in a binary tree and that are the left child of their respective parent. The root is not counted.
+            if (rt == nullptr) {
+                return 0;
+            }
+
+            int count = 0;
+            std::vector<Node*> queue;
+            queue.push_back(rt);
+
+            while (!queue.empty()) {
+                Node* current = queue.front();
+                queue.erase(queue.begin());
+                // check if left child exists and is a leaf
+                if (current->left != nullptr) {
+                    if (current->left->left == nullptr && current->left->right == nullptr) {
+                        count++;
+                    }
+                    queue.push_back(current->left);
+                }
+                // add right child to queue if it exists
+                if (current->right != nullptr) {
+                    queue.push_back(current->right);
+                }
+            }
+            return count;
         }
 };
+
